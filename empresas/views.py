@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from .serializers import EmpresaRegistroSerializer, EmpresaSerializer
 from .models import Empresa, Plan
-
+from .serializers import EmpresaRegistroSerializer, EmpresaSerializer, PlanSerializer
 ##--REGISTRO DE EMPRESA--
 
 @api_view(['POST'])
@@ -61,3 +61,47 @@ def listar_empresas(request):
     empresas = Empresa.objects.all()
     serializer = EmpresaSerializer(empresas, many=True)
     return Response(serializer.data)
+
+##--LISTAR PLANES DISPONIBLES
+@api_view(['GET'])
+def listar_planes(request):
+    planes = Plan.objects.all()
+    serializer = PlanSerializer(planes, many=True)
+    return Response(serializer.data)
+
+##--ASIGNAR PLAN A EMPRESA
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def asignar_plan(request):
+    nombre_plan = request.data.get('plan')
+    try:
+        plan = Plan.objects.get(nombre=nombre_plan)
+        empresa = request.user
+        empresa.plan = plan
+        # Actualiza los créditos según el nuevo plan
+        empresa.creditos_imagenes = plan.imagenes_mes
+        empresa.creditos_videos = plan.videos_mes
+        empresa.save()
+        return Response({
+            'mensaje': f'Plan actualizado a {plan.nombre} correctamente',
+            'empresa': EmpresaSerializer(empresa).data
+        })
+    except Plan.DoesNotExist:
+        return Response(
+            {'error': 'Plan no encontrado'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+##--DASHBOARD DE EMPRESA
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard(request):
+    empresa = request.user
+    return Response({
+        'empresa': empresa.nombre_empresa,
+        'plan_actual': empresa.plan.nombre if empresa.plan else 'Sin plan',
+        'creditos_imagenes_restantes': empresa.creditos_imagenes,
+        'creditos_videos_restantes': empresa.creditos_videos,
+        'creditos_imagenes_totales': empresa.plan.imagenes_mes if empresa.plan else 0,
+        'creditos_videos_totales': empresa.plan.videos_mes if empresa.plan else 0,
+    })
