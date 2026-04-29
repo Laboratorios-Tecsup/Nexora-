@@ -1,5 +1,5 @@
 from django.db import models
-from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 class Plan(models.Model):
     PLANES =[
@@ -25,12 +25,23 @@ class Empresa(AbstractUser):
     rol = models.CharField(max_length=20, choices=ROL, default='empresa')
     nombre_empresa = models.CharField(max_length=200, blank=True)
     logo = models.ImageField(upload_to='logos/', null=True, blank=True)
-    telefono = models.CharField(max_length=20, blank= True ) 
+    telefono = models.CharField(max_length=20, blank=True)
     sector = models.CharField(max_length=100, blank=True)
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True)
     creditos_imagenes = models.IntegerField(default=5)
     creditos_videos = models.IntegerField(default=2)
     fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='empresa_set',
+        blank=True
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='empresa_set',
+        blank=True
+    )
 
     def __str__(self):
         return f"{self.username} - {self.nombre_empresa}"
