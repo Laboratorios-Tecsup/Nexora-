@@ -24,3 +24,21 @@ urlpatterns = [
     ##--ASIGNAR PLAN A EMPRESA
     path('dashboard/', views.dashboard),
 ]
+urlpatterns = [
+
+    ##--- ENDPOINTS PÚBLICOS (no requieren token)
+    path('registro/', views.registro),
+    path('login/', views.login),
+    path('planes/', views.listar_planes),
+
+    ##--- ENDPOINTS PROTEGIDOS (requieren token JWT)
+    path('perfil/', views.perfil),
+    path('listar/', views.listar_empresas),
+    path('planes/asignar/', views.asignar_plan),
+    path('dashboard/', views.dashboard),
+
+    ##--- ENDPOINTS DE CAMPAÑAS
+    path('campanas/crear/', views.crear_campana),
+    path('campanas/listar/', views.listar_campanas),
+    path('campanas/<int:pk>/', views.detalle_campana),
+]

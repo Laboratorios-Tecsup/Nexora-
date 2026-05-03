@@ -7,6 +7,9 @@ from django.contrib.auth import authenticate
 from .serializers import EmpresaRegistroSerializer, EmpresaSerializer
 from .models import Empresa, Plan
 from .serializers import EmpresaRegistroSerializer, EmpresaSerializer, PlanSerializer
+from .serializers import EmpresaRegistroSerializer, EmpresaSerializer, PlanSerializer, CampanaSerializer, CampanaCrearSerializer
+from .models import Empresa, Plan, Campana
+
 ##--REGISTRO DE EMPRESA--
 
 @api_view(['POST'])
@@ -105,3 +108,44 @@ def dashboard(request):
         'creditos_imagenes_totales': empresa.plan.imagenes_mes if empresa.plan else 0,
         'creditos_videos_totales': empresa.plan.videos_mes if empresa.plan else 0,
     })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def crear_campana(request):
+    # Verifica que tenga créditos disponibles
+    empresa = request.user
+    if empresa.creditos_imagenes <= 0:
+        return Response(
+            {'error': 'No tienes créditos de imágenes disponibles. Mejora tu plan.'},
+            status=status.HTTP_402_PAYMENT_REQUIRED
+        )
+
+    serializer = CampanaCrearSerializer(data=request.data)
+    if serializer.is_valid():
+        campana = serializer.save(empresa=empresa)
+        return Response({
+            'mensaje': 'Fotos subidas correctamente',
+            'campana_id': campana.id,
+            'campana': CampanaSerializer(campana).data
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_campanas(request):
+    campanas = Campana.objects.filter(empresa=request.user).order_by('-fecha_creacion')
+    serializer = CampanaSerializer(campanas, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def detalle_campana(request, pk):
+    try:
+        campana = Campana.objects.get(pk=pk, empresa=request.user)
+        serializer = CampanaSerializer(campana)
+        return Response(serializer.data)
+    except Campana.DoesNotExist:
+        return Response(
+            {'error': 'Campaña no encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )

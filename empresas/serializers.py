@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Empresa, Plan
-
+from .models import Empresa, Plan, Campana
 # Serializer para mostrar info del plan
 class PlanSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,3 +41,37 @@ class EmpresaSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'nombre_empresa', 'sector',
                   'telefono', 'rol', 'plan', 'creditos_imagenes',
                   'creditos_videos', 'fecha_registro']
+class CampanaSerializer(serializers.ModelSerializer):
+    empresa = EmpresaSerializer(read_only=True)
+
+    class Meta:
+        model = Campana
+        fields = [
+            'id', 'empresa', 'nombre_negocio', 'descripcion_producto',
+            'publico_objetivo', 'tono', 'red_social', 'foto_producto',
+            'foto_modelo', 'imagen_generada', 'estado', 'fecha_creacion'
+        ]
+        read_only_fields = ['estado', 'imagen_generada', 'fecha_creacion']
+
+class CampanaCrearSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Campana
+        fields = [
+            'nombre_negocio', 'descripcion_producto', 'publico_objetivo',
+            'tono', 'red_social', 'foto_producto', 'foto_modelo'
+        ]
+
+    def validate_foto_producto(self, value):
+        # Valida que sea imagen JPG o PNG máx 10MB
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("La foto no puede superar 10MB")
+        if not value.name.lower().endswith(('.jpg', '.jpeg', '.png')):
+            raise serializers.ValidationError("Solo se aceptan JPG o PNG")
+        return value
+
+    def validate_foto_modelo(self, value):
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("La foto no puede superar 10MB")
+        if not value.name.lower().endswith(('.jpg', '.jpeg', '.png')):
+            raise serializers.ValidationError("Solo se aceptan JPG o PNG")
+        return value
