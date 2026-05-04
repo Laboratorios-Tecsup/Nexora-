@@ -41,4 +41,5 @@ urlpatterns = [
     path('campanas/crear/', views.crear_campana),
     path('campanas/listar/', views.listar_campanas),
     path('campanas/<int:pk>/', views.detalle_campana),
+    path('campanas/<int:pk>/generar-imagen/', views.generar_imagen),
 ]

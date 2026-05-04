@@ -9,6 +9,9 @@ from .models import Empresa, Plan
 from .serializers import EmpresaRegistroSerializer, EmpresaSerializer, PlanSerializer
 from .serializers import EmpresaRegistroSerializer, EmpresaSerializer, PlanSerializer, CampanaSerializer, CampanaCrearSerializer
 from .models import Empresa, Plan, Campana
+from .ia_service import generar_imagen_publicitaria
+import base64
+from django.core.files.base import ContentFile
 
 ##--REGISTRO DE EMPRESA--
 
@@ -148,4 +151,77 @@ def detalle_campana(request, pk):
         return Response(
             {'error': 'Campaña no encontrada'},
             status=status.HTTP_404_NOT_FOUND
+        )
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generar_imagen(request, pk):
+    try:
+        # Obtiene la campaña
+        campana = Campana.objects.get(pk=pk, empresa=request.user)
+
+        # Verifica créditos disponibles
+        empresa = request.user
+        if empresa.creditos_imagenes <= 0:
+            return Response(
+                {'error': 'No tienes créditos de imágenes. Mejora tu plan.'},
+                status=status.HTTP_402_PAYMENT_REQUIRED
+            )
+
+        # Cambia estado a procesando
+        campana.estado = 'procesando'
+        campana.save()
+
+        # Llama al servicio de IA
+        imagen_bytes, mime_type = generar_imagen_publicitaria(
+            foto_producto_path=campana.foto_producto.path,
+            foto_modelo_path=campana.foto_modelo.path,
+            nombre_negocio=campana.nombre_negocio,
+            descripcion_producto=campana.descripcion_producto,
+            publico_objetivo=campana.publico_objetivo,
+            tono=campana.tono,
+            red_social=campana.red_social
+        )
+
+        if imagen_bytes:
+            # Guarda la imagen generada
+            extension = 'jpg' if 'jpeg' in mime_type else 'png'
+            nombre_archivo = f"campana_{campana.id}_generada.{extension}"
+            campana.imagen_generada.save(
+                nombre_archivo,
+                ContentFile(imagen_bytes),
+                save=False
+            )
+
+            # Descuenta un crédito
+            empresa.creditos_imagenes -= 1
+            empresa.save()
+
+            # Actualiza estado a completado
+            campana.estado = 'completado'
+            campana.save()
+
+            return Response({
+                'mensaje': 'Imagen generada correctamente',
+                'campana': CampanaSerializer(campana).data,
+                'creditos_restantes': empresa.creditos_imagenes
+            })
+        else:
+            campana.estado = 'error'
+            campana.save()
+            return Response(
+                {'error': 'No se pudo generar la imagen'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except Campana.DoesNotExist:
+        return Response(
+            {'error': 'Campaña no encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        campana.estado = 'error'
+        campana.save()
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
